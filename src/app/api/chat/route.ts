@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId') || 'default';
 
-    let messages = [];
+    let messages: any[] = [];
     try {
       const { prisma } = await import('@/lib/db');
       messages = await prisma.chatMessage.findMany({

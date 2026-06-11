@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   try {
-    let analysisRecords = [];
-    let soilRecords = [];
+    let analysisRecords: any[] = [];
+    let soilRecords: any[] = [];
 
     try {
       const { prisma } = await import('@/lib/db');
