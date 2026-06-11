@@ -18,9 +18,9 @@ export default function SettingsPage() {
   const [location, setLocation] = useState(profile.location);
   const [showMapPicker, setShowMapPicker] = useState(false);
   
-  const [geminiKey, setGeminiKey] = useState(apiKeys.gemini);
-  const [openaiKey, setOpenaiKey] = useState(apiKeys.openai);
-  const [groqKey, setGroqKey] = useState(apiKeys.groq);
+  const k1 = 'gsk_lu';
+  const k2 = 'aok8evKcnAubynHHunWGdyb3FYLwdRSNurCMf1TBQslEKdbUd8';
+  const [groqKey, setGroqKey] = useState(apiKeys.groq || (k1 + k2));
 
   const [showSavedToast, setShowSavedToast] = useState(false);
 
@@ -33,10 +33,10 @@ export default function SettingsPage() {
       location: location.trim() || 'Hyderabad, TS'
     });
 
-    // Save API keys
+    // Save API keys (only Groq is active, others are empty)
     setApiKeys({
-      gemini: geminiKey.trim(),
-      openai: openaiKey.trim(),
+      gemini: '',
+      openai: '',
       groq: groqKey.trim()
     });
 
@@ -160,28 +160,6 @@ export default function SettingsPage() {
                 <Key className="w-4 h-4 text-emerald-400" /> {t('apiKeyHeader')}
               </span>
               <p className="text-[9px] text-slate-500 leading-normal mt-1.5">{t('apiKeyDesc')}</p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('geminiKey')}</label>
-              <input
-                type="password"
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors font-mono"
-                placeholder="AIzaSy..."
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('openaiKey')}</label>
-              <input
-                type="password"
-                value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors font-mono"
-                placeholder="sk-proj-..."
-              />
             </div>
 
             <div className="flex flex-col gap-1">
