@@ -1,0 +1,74 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./agri_vision.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  name      String   @default("Farmer Partner")
+  language  String   @default("en") // 'en', 'te' (Telugu), 'hi' (Hindi)
+  location  String   @default("Hyderabad, TS")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AnalysisRecord {
+  id                   String   @id @default(uuid())
+  type                 String   // 'disease', 'pest', 'waste'
+  image                String   // Base64 or URL
+  itemName             String   // e.g. "Late Blight" or "Aphids"
+  confidence           Float
+  severity             String   // "Low", "Medium", "High"
+  explanation          String
+  reasoning            String
+  recommendations      String   // JSON string of string[]
+  organicSolutions     String?  // JSON string of string[] (pest only)
+  chemicalSolutions    String?  // JSON string of string[] (pest only)
+  preventionTips       String   // JSON string of string[]
+  limitations          String
+  expertWarning        String
+  boundingBoxes        String?  // JSON string representing bounding box coordinates to overlay on the image
+  createdAt            DateTime @default(now())
+}
+
+model SoilRecord {
+  id               String   @id @default(uuid())
+  soilType         String
+  soilColor        String
+  pH               Float
+  moisture         Float
+  cropType         String
+  healthScore      Int
+  nutrients        String   // JSON string of nutrient analysis
+  fertilizers      String   // JSON string of suggestions
+  suitability      String   // JSON string of suitable crops
+  improvements     String   // JSON string of soil improvement steps
+  createdAt        DateTime @default(now())
+}
+
+model ChatMessage {
+  id            String   @id @default(uuid())
+  sessionId     String   @default("default")
+  sender        String   // 'user' or 'ai'
+  content       String
+  confidence    Float?
+  limitations   String?
+  expertWarning String?
+  createdAt     DateTime @default(now())
+}
+
+model WeatherRecord {
+  id             String   @id @default(uuid())
+  location       String
+  temp           Float
+  humidity       Float
+  windSpeed      Float
+  rainfallChance Float
+  aqi            Int
+  advisory       String   // JSON string of recommendations
+  createdAt      DateTime @default(now())
+}

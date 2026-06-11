@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Select Location</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:#0f172a;font-family:'Segoe UI',sans-serif;}
+  #search-bar{
+    position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
+    display:flex;gap:6px;width:calc(100% - 24px);max-width:420px;
+  }
+  #search-input{
+    flex:1;padding:9px 14px;border-radius:10px;border:1.5px solid #334155;
+    background:#0f172a;color:#f1f5f9;font-size:13px;outline:none;
+    box-shadow:0 2px 12px rgba(0,0,0,0.5);
+    transition:border-color .2s;
+  }
+  #search-input:focus{border-color:#10b981;}
+  #search-btn{
+    padding:9px 14px;border-radius:10px;border:none;background:#10b981;
+    color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+    box-shadow:0 2px 12px rgba(16,185,129,0.3);
+    transition:background .2s;
+  }
+  #search-btn:active{background:#059669;}
+  #map{height:100%;width:100%;}
+  #confirm-bar{
+    position:absolute;bottom:0;left:0;right:0;z-index:1000;
+    background:linear-gradient(to top,#0f172a,#0f172acc);
+    padding:14px 16px 18px;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  #location-display{
+    font-size:11px;color:#94a3b8;background:#1e293b;
+    padding:8px 12px;border-radius:8px;border:1px solid #334155;
+    min-height:34px;display:flex;align-items:center;word-break:break-word;
+  }
+  #confirm-btn{
+    width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);
+    color:#fff;font-size:14px;font-weight:700;border:none;border-radius:10px;
+    cursor:pointer;box-shadow:0 4px 15px rgba(16,185,129,0.35);
+    transition:transform .1s,box-shadow .2s;
+    letter-spacing:.3px;
+  }
+  #confirm-btn:active{transform:scale(0.97);}
+  #confirm-btn:disabled{background:#334155;color:#64748b;cursor:not-allowed;box-shadow:none;}
+  .leaflet-container{background:#1e293b;}
+  .leaflet-tile{filter:brightness(0.85) saturate(1.3);}
+  .custom-marker{
+    width:36px;height:36px;
+    background:linear-gradient(135deg,#10b981,#059669);
+    border:3px solid #fff;border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    box-shadow:0 4px 15px rgba(16,185,129,0.5);
+    display:flex;align-items:center;justify-content:center;
+  }
+  #crosshair{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-60px);
+    z-index:999;pointer-events:none;opacity:0;transition:opacity .3s;
+    font-size:22px;
+  }
+</style>
+</head>
+<body>
+<!-- Search Bar -->
+<div id="search-bar">
+  <input id="search-input" type="text" placeholder="Search city, village, area..." />
+  <button id="search-btn" onclick="searchLocation()">Search</button>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Crosshair (shown on drag) -->
+<div id="crosshair">📍</div>
+
+<!-- Confirm Bar -->
+<div id="confirm-bar">
+  <div id="location-display">Tap on the map to drop a pin…</div>
+  <button id="confirm-btn" disabled onclick="confirmLocation()">✅ Confirm Selection</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var map, marker, currentAddress = '', currentLat = 0, currentLng = 0;
+
+  // India-centered default view
+  map = L.map('map', {
+    center: [20.5937, 78.9629],
+    zoom: 5,
+    zoomControl: true,
+    attributionControl: false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  var greenIcon = L.divIcon({
+    className: '',
+    html: '<div class="custom-marker"></div>',
+    iconSize: [36,36],
+    iconAnchor: [18,36],
+    popupAnchor: [0,-36],
+  });
+
+  function placeMarker(lat, lng) {
+    if (marker) {
+      marker.setLatLng([lat, lng]);
+    } else {
+      marker = L.marker([lat, lng], {icon: greenIcon, draggable: true}).addTo(map);
+      marker.on('dragend', function(e) {
+        var pos = marker.getLatLng();
+        reverseGeocode(pos.lat, pos.lng);
+      });
+    }
+    map.panTo([lat, lng]);
+    reverseGeocode(lat, lng);
+  }
+
+  function reverseGeocode(lat, lng) {
+    currentLat = lat; currentLng = lng;
+    document.getElementById('location-display').textContent = 'Fetching address…';
+    document.getElementById('confirm-btn').disabled = true;
+    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng)
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        currentAddress = data.display_name || (lat.toFixed(5)+', '+lng.toFixed(5));
+        document.getElementById('location-display').textContent = '📍 ' + currentAddress;
+        document.getElementById('confirm-btn').disabled = false;
+      })
+      .catch(function() {
+        currentAddress = lat.toFixed(5)+', '+lng.toFixed(5);
+        document.getElementById('location-display').textContent = '📍 ' + currentAddress;
+        document.getElementById('confirm-btn').disabled = false;
+      });
+  }
+
+  map.on('click', function(e) {
+    placeMarker(e.latlng.lat, e.latlng.lng);
+  });
+
+  function searchLocation() {
+    var q = document.getElementById('search-input').value.trim();
+    if (!q) return;
+    document.getElementById('location-display').textContent = 'Searching…';
+    fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(q)+'&limit=1')
+      .then(function(r){ return r.json(); })
+      .then(function(results) {
+        if (results.length === 0) {
+          document.getElementById('location-display').textContent = '❌ No results found. Try a different name.';
+          return;
+        }
+        var r = results[0];
+        map.setView([parseFloat(r.lat), parseFloat(r.lon)], 14);
+        placeMarker(parseFloat(r.lat), parseFloat(r.lon));
+      })
+      .catch(function() {
+        document.getElementById('location-display').textContent = '❌ Search failed. Check connection.';
+      });
+  }
+
+  document.getElementById('search-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') searchLocation();
+  });
+
+  function confirmLocation() {
+    if (!currentAddress) return;
+    window.parent.postMessage({
+      type: 'MAP_LOCATION_SELECTED',
+      address: currentAddress,
+      lat: currentLat,
+      lng: currentLng,
+    }, '*');
+  }
+
+  // Try to get user's location on load
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+      placeMarker(pos.coords.latitude, pos.coords.longitude);
+    }, function(){}, { timeout: 5000 });
+  }
+</script>
+</body>
+</html>
