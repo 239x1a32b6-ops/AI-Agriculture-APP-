@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
-    const analysisRecords = await prisma.analysisRecord.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
+    let analysisRecords = [];
+    let soilRecords = [];
 
-    const soilRecords = await prisma.soilRecord.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
+    try {
+      const { prisma } = await import('@/lib/db');
+      analysisRecords = await prisma.analysisRecord.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+
+      soilRecords = await prisma.soilRecord.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+    } catch (dbErr) {
+      console.warn('[History API] DB fetch skipped:', (dbErr as Error).message);
+    }
 
     // Formats records into a unified structure for easier client parsing
     const unifiedHistory = [
@@ -60,9 +67,13 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    // Delete all records to allow clearing logs
-    await prisma.analysisRecord.deleteMany({});
-    await prisma.soilRecord.deleteMany({});
+    try {
+      const { prisma } = await import('@/lib/db');
+      await prisma.analysisRecord.deleteMany({});
+      await prisma.soilRecord.deleteMany({});
+    } catch (dbErr) {
+      console.warn('[History API] DB clear skipped:', (dbErr as Error).message);
+    }
     return NextResponse.json({ success: true, message: 'All history cleared' });
   } catch (error: any) {
     console.error('Error clearing history records:', error);

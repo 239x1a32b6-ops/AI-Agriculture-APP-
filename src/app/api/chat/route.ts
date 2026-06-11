@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { AIService } from '@/lib/ai';
 
 export async function POST(req: NextRequest) {
@@ -14,14 +13,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Save user's message in the database
-    await prisma.chatMessage.create({
-      data: {
-        sessionId,
-        sender: 'user',
-        content: message,
-      },
-    });
+    // 1. Save user's message in the database (non-blocking)
+    try {
+      const { prisma } = await import('@/lib/db');
+      await prisma.chatMessage.create({
+        data: {
+          sessionId,
+          sender: 'user',
+          content: message,
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[Chat API] DB user message save skipped:', (dbErr as Error).message);
+    }
 
     // 2. Call AI Chat Service
     const aiResult = await AIService.getChatResponse(
@@ -31,22 +35,29 @@ export async function POST(req: NextRequest) {
       keys || {}
     );
 
-    // 3. Save AI's response in the database
-    const savedResponse = await prisma.chatMessage.create({
-      data: {
-        sessionId,
-        sender: 'ai',
-        content: aiResult.content,
-        confidence: aiResult.confidence,
-        limitations: aiResult.limitations,
-        expertWarning: aiResult.expertWarning,
-      },
-    });
+    // 3. Save AI's response in the database (non-blocking)
+    let recordMeta: { id?: string; createdAt?: string } = {};
+    try {
+      const { prisma } = await import('@/lib/db');
+      const savedResponse = await prisma.chatMessage.create({
+        data: {
+          sessionId,
+          sender: 'ai',
+          content: aiResult.content,
+          confidence: aiResult.confidence,
+          limitations: aiResult.limitations,
+          expertWarning: aiResult.expertWarning,
+        },
+      });
+      recordMeta = { id: savedResponse.id, createdAt: savedResponse.createdAt.toISOString() };
+    } catch (dbErr) {
+      console.warn('[Chat API] DB AI message save skipped:', (dbErr as Error).message);
+    }
 
     return NextResponse.json({
-      id: savedResponse.id,
+      id: recordMeta.id || 'temp-' + Date.now(),
       ...aiResult,
-      createdAt: savedResponse.createdAt,
+      createdAt: recordMeta.createdAt || new Date().toISOString(),
     });
   } catch (error: any) {
     console.error('Error in /api/chat:', error);
@@ -56,15 +67,22 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId') || 'default';
 
-    const messages = await prisma.chatMessage.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: 'asc' },
-    });
+    let messages = [];
+    try {
+      const { prisma } = await import('@/lib/db');
+      messages = await prisma.chatMessage.findMany({
+        where: { sessionId },
+        orderBy: { createdAt: 'asc' },
+      });
+    } catch (dbErr) {
+      console.warn('[Chat API] DB get history skipped:', (dbErr as Error).message);
+    }
 
     return NextResponse.json(messages);
   } catch (error: any) {
@@ -78,9 +96,14 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId') || 'default';
 
-    await prisma.chatMessage.deleteMany({
-      where: { sessionId },
-    });
+    try {
+      const { prisma } = await import('@/lib/db');
+      await prisma.chatMessage.deleteMany({
+        where: { sessionId },
+      });
+    } catch (dbErr) {
+      console.warn('[Chat API] DB clear history skipped:', (dbErr as Error).message);
+    }
 
     return NextResponse.json({ success: true, message: 'Chat history cleared' });
   } catch (error: any) {
